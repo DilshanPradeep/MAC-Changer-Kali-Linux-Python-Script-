@@ -1,1 +1,61 @@
 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
+
+
+
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from peft import PeftModel
+import torch
+
+# ✅ Use LLaMA 2 Instead of LLaMA 3 (since LLaMA 3 is not publicly available)
+base_model = "meta-llama/Llama-2-7b-chat-hf"
+peft_model = "FinGPT/fingpt-mt_llama2-7b_lora"  # Update if needed
+
+# ✅ Load Tokenizer
+tokenizer = AutoTokenizer.from_pretrained(base_model)
+tokenizer.pad_token = tokenizer.eos_token  # Set padding token
+
+# ✅ Load Model with CUDA Support
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = AutoModelForCausalLM.from_pretrained(base_model, device_map="auto")
+model = PeftModel.from_pretrained(model, peft_model)
+model = model.to(device).eval()
+
+# ✅ Define Prompts
+prompts = [
+    """Instruction: What is the sentiment of this news? Please choose an answer from {negative/neutral/positive}
+    Input: FINANCING OF ASPOCOMP 'S GROWTH Aspocomp is aggressively pursuing its growth strategy by increasingly focusing on technologically more demanding HDI printed circuit boards PCBs.
+    Answer: """,
+
+    """Instruction: What is the sentiment of this news? Please choose an answer from {negative/neutral/positive}
+    Input: According to Gran, the company has no plans to move all production to Russia, although that is where the company is growing.
+    Answer: """
+]
+
+# ✅ Tokenize Prompts
+tokenized_inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
+
+# ✅ Generate Output
+with torch.no_grad():  # Disable gradient computation
+    output_tokens = model.generate(**tokenized_inputs, max_length=512)
+
+# ✅ Decode Results
+decoded_sentences = [tokenizer.decode(output, skip_special_tokens=True) for output in output_tokens]
+
+# ✅ Extract Sentiment Answers
+sentiment_results = [sent.split("Answer: ")[-1] for sent in decoded_sentences]
+
+# ✅ Show Results
+for idx, sentiment in enumerate(sentiment_results):
+    print(f"Prompt {idx+1} Sentiment: {sentiment.strip()}")
+
+
+
+
+
+
+
+pip install torch transformers peft huggingface_hub openai datasets accelerate
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+pip install git+https://github.com/huggingface/peft.git
+
+huggingface-cli login
